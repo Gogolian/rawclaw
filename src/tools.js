@@ -10,10 +10,16 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = resolve(__dirname, '..');
 const workspaceRootReal = realpathSync(workspaceRoot);
 
+/**
+ * Check whether a resolved real path stays inside the workspace boundary.
+ */
 function isInsideWorkspace(path) {
   return path === workspaceRootReal || path.startsWith(workspaceRootReal + sep);
 }
 
+/**
+ * Walk up from a path to the nearest existing ancestor for symlink validation.
+ */
 function nearestExistingPath(path) {
   let current = path;
   while (!existsSync(current)) {
