@@ -12,6 +12,9 @@ const workspaceRootReal = realpathSync(workspaceRoot);
 
 /**
  * Check whether a resolved real path stays inside the workspace boundary.
+ *
+ * @param {string} path - Absolute real path to validate.
+ * @returns {boolean} True when the path is inside the workspace.
  */
 function isInsideWorkspace(path) {
   return path === workspaceRootReal || path.startsWith(workspaceRootReal + sep);
@@ -19,6 +22,9 @@ function isInsideWorkspace(path) {
 
 /**
  * Walk up from a path to the nearest existing ancestor for symlink validation.
+ *
+ * @param {string} path - Absolute path that may not exist yet.
+ * @returns {string} The nearest existing path at or above the input path.
  */
 function nearestExistingPath(path) {
   let current = path;
