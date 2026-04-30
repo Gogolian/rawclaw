@@ -9,6 +9,13 @@ import { dirname } from 'node:path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(__dirname, '..');
+const outsideTempPrefix = join(tmpdir(), 'rawclaw-outside-');
+
+function makeWorkspaceLinkPath(prefix) {
+  const linkPath = mkdtempSync(join(projectRoot, prefix));
+  rmSync(linkPath, { force: true, recursive: true });
+  return linkPath;
+}
 
 test('safeResolvePath - allows paths within workspace', () => {
   const result = safeResolvePath('src/agent.js');
@@ -36,8 +43,8 @@ test('safeResolvePath - rejects absolute path outside workspace', () => {
 });
 
 test('safeResolvePath - rejects symlinks that point outside workspace', () => {
-  const outsideDir = mkdtempSync(join(tmpdir(), 'rawclaw-outside-'));
-  const linkPath = join(projectRoot, `test-outside-link-${Date.now()}`);
+  const outsideDir = mkdtempSync(outsideTempPrefix);
+  const linkPath = makeWorkspaceLinkPath('test-outside-link-');
 
   try {
     symlinkSync(outsideDir, linkPath, 'dir');
@@ -98,8 +105,8 @@ test('read_file tool - rejects path traversal', () => {
 
 test('write_file tool - rejects writes through symlinked directories outside workspace', () => {
   const tool = getTool('write_file');
-  const outsideDir = mkdtempSync(join(tmpdir(), 'rawclaw-outside-'));
-  const linkPath = join(projectRoot, `test-outside-write-link-${Date.now()}`);
+  const outsideDir = mkdtempSync(outsideTempPrefix);
+  const linkPath = makeWorkspaceLinkPath('test-outside-write-link-');
 
   try {
     symlinkSync(outsideDir, linkPath, 'dir');
