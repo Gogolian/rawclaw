@@ -19,7 +19,7 @@ function nearestExistingPath(path) {
   while (!existsSync(current)) {
     const parent = dirname(current);
     if (parent === current) {
-      return current;
+      throw new Error(`No existing path found for '${path}'.`);
     }
     current = parent;
   }
