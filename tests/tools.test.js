@@ -1,7 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtempSync, rmSync, symlinkSync } from 'node:fs';
 import { safeResolvePath, getToolSchemas, getTool } from '../src/tools.js';
-import { resolve } from 'node:path';
+import { basename, join, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
 
@@ -31,6 +33,25 @@ test('safeResolvePath - rejects absolute path outside workspace', () => {
       return true;
     }
   );
+});
+
+test('safeResolvePath - rejects symlinks that point outside workspace', () => {
+  const outsideDir = mkdtempSync(join(tmpdir(), 'rawclaw-outside-'));
+  const linkPath = join(projectRoot, `test-outside-link-${Date.now()}`);
+
+  try {
+    symlinkSync(outsideDir, linkPath, 'dir');
+    assert.throws(
+      () => safeResolvePath(linkPath),
+      (err) => {
+        assert.ok(err.message.includes('outside the workspace'), `Unexpected message: ${err.message}`);
+        return true;
+      }
+    );
+  } finally {
+    rmSync(linkPath, { force: true, recursive: true });
+    rmSync(outsideDir, { force: true, recursive: true });
+  }
 });
 
 test('getToolSchemas - returns schema for all built-in tools', () => {
@@ -73,6 +94,26 @@ test('read_file tool - rejects path traversal', () => {
       return true;
     }
   );
+});
+
+test('write_file tool - rejects writes through symlinked directories outside workspace', () => {
+  const tool = getTool('write_file');
+  const outsideDir = mkdtempSync(join(tmpdir(), 'rawclaw-outside-'));
+  const linkPath = join(projectRoot, `test-outside-write-link-${Date.now()}`);
+
+  try {
+    symlinkSync(outsideDir, linkPath, 'dir');
+    assert.throws(
+      () => tool.run({ path: join(basename(linkPath), 'written.txt'), content: 'nope' }),
+      (err) => {
+        assert.ok(err.message.includes('outside the workspace'), `Unexpected message: ${err.message}`);
+        return true;
+      }
+    );
+  } finally {
+    rmSync(linkPath, { force: true, recursive: true });
+    rmSync(outsideDir, { force: true, recursive: true });
+  }
 });
 
 test('list_directory tool - lists workspace root', async () => {
