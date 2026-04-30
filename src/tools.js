@@ -28,14 +28,16 @@ function isInsideWorkspace(path) {
  */
 function nearestExistingPath(path) {
   let current = path;
-  while (!existsSync(current)) {
+  while (true) {
+    if (existsSync(current)) {
+      return current;
+    }
     const parent = dirname(current);
     if (parent === current) {
       throw new Error(`No existing path found for '${path}'.`);
     }
     current = parent;
   }
-  return current;
 }
 
 /**
