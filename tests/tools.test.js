@@ -1,12 +1,21 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtempSync, rmSync, symlinkSync } from 'node:fs';
 import { safeResolvePath, getToolSchemas, getTool } from '../src/tools.js';
-import { resolve } from 'node:path';
+import { basename, join, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(__dirname, '..');
+const outsideTempPrefix = join(tmpdir(), 'rawclaw-outside-');
+
+function reserveUniqueWorkspacePath(prefix) {
+  const linkPath = mkdtempSync(join(projectRoot, prefix));
+  rmSync(linkPath, { force: true, recursive: true });
+  return linkPath;
+}
 
 test('safeResolvePath - allows paths within workspace', () => {
   const result = safeResolvePath('src/agent.js');
@@ -31,6 +40,25 @@ test('safeResolvePath - rejects absolute path outside workspace', () => {
       return true;
     }
   );
+});
+
+test('safeResolvePath - rejects symlinks that point outside workspace', () => {
+  const outsideDir = mkdtempSync(outsideTempPrefix);
+  const linkPath = reserveUniqueWorkspacePath('test-outside-link-');
+
+  try {
+    symlinkSync(outsideDir, linkPath, 'dir');
+    assert.throws(
+      () => safeResolvePath(linkPath),
+      (err) => {
+        assert.ok(err.message.includes('outside the workspace'), `Unexpected message: ${err.message}`);
+        return true;
+      }
+    );
+  } finally {
+    rmSync(linkPath, { force: true, recursive: true });
+    rmSync(outsideDir, { force: true, recursive: true });
+  }
 });
 
 test('getToolSchemas - returns schema for all built-in tools', () => {
@@ -73,6 +101,26 @@ test('read_file tool - rejects path traversal', () => {
       return true;
     }
   );
+});
+
+test('write_file tool - rejects writes through symlinked directories outside workspace', () => {
+  const tool = getTool('write_file');
+  const outsideDir = mkdtempSync(outsideTempPrefix);
+  const linkPath = reserveUniqueWorkspacePath('test-outside-write-link-');
+
+  try {
+    symlinkSync(outsideDir, linkPath, 'dir');
+    assert.throws(
+      () => tool.run({ path: join(basename(linkPath), 'written.txt'), content: 'nope' }),
+      (err) => {
+        assert.ok(err.message.includes('outside the workspace'), `Unexpected message: ${err.message}`);
+        return true;
+      }
+    );
+  } finally {
+    rmSync(linkPath, { force: true, recursive: true });
+    rmSync(outsideDir, { force: true, recursive: true });
+  }
 });
 
 test('list_directory tool - lists workspace root', async () => {

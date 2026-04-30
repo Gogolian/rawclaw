@@ -1,5 +1,5 @@
-import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
-import { resolve, join, isAbsolute, normalize } from 'node:path';
+import { readFileSync, writeFileSync, readdirSync, statSync, existsSync, realpathSync } from 'node:fs';
+import { resolve, join, isAbsolute, normalize, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
 import { spawn } from 'node:child_process';
@@ -8,6 +8,37 @@ import http from 'node:http';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = resolve(__dirname, '..');
+const workspaceRootReal = realpathSync(workspaceRoot);
+
+/**
+ * Check whether a resolved real path stays inside the workspace boundary.
+ *
+ * @param {string} path - Absolute real path to validate.
+ * @returns {boolean} True when the path is inside the workspace.
+ */
+function isInsideWorkspace(path) {
+  return path === workspaceRootReal || path.startsWith(workspaceRootReal + sep);
+}
+
+/**
+ * Walk up from a path to the nearest existing ancestor for symlink validation.
+ *
+ * @param {string} path - Absolute path that may not exist yet.
+ * @returns {string} The nearest existing path at or above the input path.
+ */
+function nearestExistingPath(path) {
+  let current = path;
+  while (true) {
+    if (existsSync(current)) {
+      return current;
+    }
+    const parent = dirname(current);
+    if (parent === current) {
+      throw new Error(`No existing path found for '${path}'.`);
+    }
+    current = parent;
+  }
+}
 
 /**
  * Reject any path that tries to escape the workspace via '..' segments.
@@ -18,7 +49,10 @@ function safeResolvePath(userPath) {
     ? normalize(userPath)
     : resolve(workspaceRoot, userPath);
 
-  if (!resolved.startsWith(workspaceRoot + '/') && resolved !== workspaceRoot) {
+  if (!resolved.startsWith(workspaceRoot + sep) && resolved !== workspaceRoot) {
+    throw new Error(`Path '${userPath}' is outside the workspace.`);
+  }
+  if (!isInsideWorkspace(realpathSync(nearestExistingPath(resolved)))) {
     throw new Error(`Path '${userPath}' is outside the workspace.`);
   }
   return resolved;
