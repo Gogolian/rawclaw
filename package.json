@@ -1,0 +1,15 @@
+{
+  "name": "rawclaw",
+  "version": "0.1.0",
+  "description": "Zero-dependency, plain-Node.js personal Claude agent.",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "node --test tests/"
+  },
+  "engines": { "node": ">=20" },
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {}
+}
