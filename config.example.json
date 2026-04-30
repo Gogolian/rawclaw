@@ -1,0 +1,17 @@
+{
+  "model": "claude-3-5-haiku-20241022",
+  "system": "You are a helpful personal assistant. Be concise and clear.",
+  "maxTokens": 4096,
+  "skillsDir": "./skills",
+  "tools": {
+    "shell": {
+      "enabled": false
+    }
+  },
+  "channels": {
+    "telegram": {
+      "enabled": false,
+      "token": ""
+    }
+  }
+}
